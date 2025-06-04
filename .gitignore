@@ -1,0 +1,23 @@
+# .gitignore (in the root multiplayer-pong-game/ directory)
+
+# Node
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+dist/ # For compiled server code
+build/ # For compiled client code
+
+# IDE & OS specific
+.DS_Store
+.idea/
+.vscode/
+*.suo
+*.user
+*.userosscache
+*.sln.docstates
+
+# Logs
+logs
+*.log
