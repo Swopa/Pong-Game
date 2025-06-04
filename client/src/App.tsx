@@ -1,8 +1,10 @@
-
+import { GAME_HEIGHT } from '@shared/types';
 import React, { useEffect, useState } from 'react';
 import socket from './socket'; 
 import './App.css'; 
 
+
+console.log('Shared GAME_HEIGHT from client:', GAME_HEIGHT); // Just for testing import
 function App() {
   const [isConnected, setIsConnected] = useState<boolean>(socket.connected);
   const [serverMessage, setServerMessage] = useState<string>('');

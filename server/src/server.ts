@@ -1,4 +1,6 @@
 // server/src/server.ts
+import { GAME_WIDTH } from '@shared/types';
+console.log('Shared GAME_WIDTH:', GAME_WIDTH); // Just for testing import
 import express from 'express';
 import http from 'http';
 import { Server as SocketIOServer } from 'socket.io';
