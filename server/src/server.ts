@@ -1,4 +1,3 @@
-// server/src/server.ts
 import express from 'express';
 import http from 'http';
 import { Server as SocketIOServer, Socket } from 'socket.io';
@@ -19,7 +18,10 @@ import {
     PADDLE_HEIGHT,
     PADDLE_OFFSET_X,
     BALL_RADIUS,
-    INITIAL_BALL_SPEED
+    INITIAL_BALL_SPEED,
+    PlayerInputPayload,
+    PaddleMoveKey,
+    PADDLE_SPEED, // Make sure PADDLE_SPEED is exported from shared/types.ts or define it here
 } from '@shared/types';
 
 const app = express();
@@ -188,6 +190,9 @@ io.on('connection', (socket) => {
                 }
             }
         }
+
+        
+
     });
 
     socket.on('disconnect', () => {
@@ -222,6 +227,65 @@ io.on('connection', (socket) => {
     socket.on('clientMessage', (data) => { // Keep this for basic testing if needed
         console.log(`Message from ${socket.id}:`, data);
         socket.emit('message', `Server received your message: ${data}`);
+    });
+
+    socket.on(SOCKET_EVENTS.PLAYER_INPUT, (payload: PlayerInputPayload) => {
+        const room = rooms.get(payload.roomName);
+        if (!room || room.status !== 'playing') {
+            // console.warn(`Player input for non-existent or non-playing room: ${payload.roomName}`);
+            return;
+        }
+
+        const playerDetails = room.players[socket.id];
+        if (!playerDetails) {
+            // console.warn(`Player ${socket.id} not found in room ${payload.roomName}`);
+            return;
+        }
+
+        const paddle = room.gameState.paddles[socket.id];
+        if (!paddle) {
+            // console.warn(`Paddle not found for player ${socket.id} in room ${payload.roomName}`);
+            return;
+        }
+
+        // --- Basic movement logic for now ---
+        // We'll make this better with a game loop and velocity later.
+        // For now, direct position update. 'press' action. We'll ignore 'release' for this simple version.
+
+        if (payload.action === 'press') {
+            let moveUp = false;
+            let moveDown = false;
+
+            if (playerDetails.isPlayerOne) { // Player 1 (left paddle) uses 'w' and 's'
+                if (payload.key === 'w') moveUp = true;
+                if (payload.key === 's') moveDown = true;
+            } else { // Player 2 (right paddle) uses 'ArrowUp' and 'ArrowDown'
+                if (payload.key === 'ArrowUp') moveUp = true;
+                if (payload.key === 'ArrowDown') moveDown = true;
+            }
+
+            if (moveUp) {
+                paddle.y -= PADDLE_SPEED;
+            }
+            if (moveDown) {
+                paddle.y += PADDLE_SPEED;
+            }
+
+            // Paddle boundary checks
+            if (paddle.y < 0) {
+                paddle.y = 0;
+            }
+            if (paddle.y + paddle.height > GAME_HEIGHT) {
+                paddle.y = GAME_HEIGHT - paddle.height;
+            }
+
+            console.log(`Paddle for ${socket.id} moved to Y: ${paddle.y} in room ${room.roomName}`);
+            // IMPORTANT: We are NOT emitting the game state update here.
+            // The game loop (to be implemented next) will periodically send updates.
+            // This reduces redundant messages if multiple inputs come quickly.
+        }
+        // If you wanted to handle 'release' for stopping movement (if movement was continuous)
+        // you would add logic here. For discrete PADDLE_SPEED steps, 'release' is less critical.
     });
 });
 

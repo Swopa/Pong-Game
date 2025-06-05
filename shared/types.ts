@@ -1,5 +1,3 @@
-
-
 // ------------ Game Constants ------------
 export const GAME_WIDTH = 800;
 export const GAME_HEIGHT = 600;
@@ -9,6 +7,11 @@ export const PADDLE_SPEED = 10; // Units per keyboard event (or per frame if con
 export const BALL_RADIUS = 8;
 export const INITIAL_BALL_SPEED = 5;
 export const PADDLE_OFFSET_X = 30; // Distance from side walls
+
+
+// Define valid keys for paddle movement
+export type PaddleMoveKey = 'ArrowUp' | 'ArrowDown' | 'w' | 's';
+export type PaddleMoveAction = 'press' | 'release'; // To handle keydown and keyup
 
 // ------------ Game Object Interfaces ------------
 export interface Player {
@@ -21,7 +24,7 @@ export interface Paddle {
   playerId: string; // ID of the player controlling this paddle
   x: number;
   y: number;
-  width: number;
+  width: number;  
   height: number;
   // dy: number; // Current vertical speed, for smoother server-side movement if needed
 }
@@ -63,12 +66,11 @@ export interface GameState {
 
 // ------------ Socket Event Payloads (Client to Server) ------------
 export interface PlayerInputPayload {
-  // Define what input the client sends, e.g., for paddle movement
-  // Example: { direction: 'up' | 'down' | 'stop' }
-  // Or simply the new desired Y position (less ideal as server should validate)
-  key: 'ArrowUp' | 'ArrowDown' | 'w' | 's'; // Or 'up' | 'down'
-  action: 'press' | 'release';
+  roomName: string; // Client needs to tell server which room's game state to update
+  key: PaddleMoveKey; // This uses the type alias defined above
+  action: PaddleMoveAction; // This uses the type alias defined above
 }
+
 
 export interface JoinRoomPayload {
   playerName?: string; // Optional player name
@@ -117,3 +119,5 @@ export const SOCKET_EVENTS = {
   PLAYER_ASSIGNMENT: 'playerAssignment', // Tells client which player they are
   WAITING_FOR_PLAYER: 'waitingForPlayer',
 } as const; // `as const` makes the values read-only and more specific types
+
+

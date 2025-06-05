@@ -1,4 +1,3 @@
-
 import React, { useEffect, useState, useCallback } from 'react';
 import socket from './socket';
 import './App.css';
@@ -7,8 +6,10 @@ import './App.css';
 import {
     SOCKET_EVENTS,
     GameState,
-    RoomJoinedPayload, // For the payload of ROOM_JOINED
-    // We'll need more types as we build out the UI (Ball, Paddle etc.)
+    RoomJoinedPayload,
+    PlayerInputPayload, // For constructing the payload to send
+    PaddleMoveKey,      // For typing the event.key
+    // Ball, Paddle etc. will be used when we render the game properly
 } from '@shared/types';
 
 function App() {
@@ -24,7 +25,6 @@ function App() {
         console.log('Connected to server! Socket ID:', socket.id);
         setIsConnected(true);
         setUiMessage('Connected. Click "Join Game" to find a match.');
-        // socket.id is available here, but myPlayerId will be set by the server
     }, []);
 
     const onDisconnect = useCallback(() => {
@@ -46,7 +46,7 @@ function App() {
         console.log(SOCKET_EVENTS.ROOM_JOINED, payload);
         setRoomName(payload.roomName);
         setMyPlayerId(payload.yourPlayerId);
-        setIsPlayerOne(payload.isPlayerOne);
+        setIsPlayerOne(payload.isPlayerOne); // Assumes isPlayerOne is in RoomJoinedPayload
         setCurrentGameState(payload.initialGameState);
         setUiMessage(payload.message || `Joined room: ${payload.roomName}. You are Player ${payload.isPlayerOne ? 1 : 2}.`);
     }, []);
@@ -54,15 +54,15 @@ function App() {
     const onGameStart = useCallback((initialGameState: GameState) => {
         console.log(SOCKET_EVENTS.GAME_START, initialGameState);
         setCurrentGameState(initialGameState);
-        setUiMessage(`Game started in room ${roomName}! Good luck.`);
-    }, [roomName]); // Dependency on roomName for the message
+        // The message update relies on roomName being set from ROOM_JOINED
+        setUiMessage(`Game started in room ${roomName || 'your room'}! Good luck.`);
+    }, [roomName]);
 
     const onOpponentDisconnected = useCallback((data: { message: string }) => {
         console.log(SOCKET_EVENTS.OPPONENT_DISCONNECTED, data);
         setUiMessage(data.message || "Your opponent disconnected. Game over.");
-        // Reset game state or navigate away from game view
-        setCurrentGameState(null); // Or a specific "game over" state
-        setRoomName(null); // Clear room, ready to join a new one
+        setCurrentGameState(null);
+        setRoomName(null);
         setIsPlayerOne(null);
     }, []);
 
@@ -77,11 +77,10 @@ function App() {
         socket.on('disconnect', onDisconnect);
         socket.on(SOCKET_EVENTS.WAITING_FOR_PLAYER, onWaitingForPlayer);
         socket.on(SOCKET_EVENTS.ROOM_JOINED, onRoomJoined);
-        socket.on(SOCKET_EVENTS.GAME_START, onGameStart);
+        socket.on(SOCKET_EVENTS.GAME_START, onGameStart); // Listens for GAME_START
         socket.on(SOCKET_EVENTS.OPPONENT_DISCONNECTED, onOpponentDisconnected);
-        socket.on(SOCKET_EVENTS.ERROR, onServerError); // Listen for generic errors from server
+        socket.on(SOCKET_EVENTS.ERROR, onServerError);
 
-        // For initial connection status
         if (socket.connected) {
             onConnect();
         }
@@ -96,6 +95,48 @@ function App() {
             socket.off(SOCKET_EVENTS.ERROR, onServerError);
         };
     }, [onConnect, onDisconnect, onWaitingForPlayer, onRoomJoined, onGameStart, onOpponentDisconnected, onServerError]);
+
+
+    // --- useEffect for Keyboard Input ---
+    useEffect(() => {
+        // Only add listeners if the player is in a room, game state exists, and player role is known
+        if (!roomName || !currentGameState || !myPlayerId || isPlayerOne === null) {
+            return;
+        }
+
+        const handleKeyDown = (event: KeyboardEvent) => {
+            const key = event.key as PaddleMoveKey;
+
+            if (key === 'w' || key === 's' || key === 'ArrowUp' || key === 'ArrowDown') {
+                event.preventDefault();
+
+                let shouldEmit = false;
+                if (isPlayerOne) { // Player 1 (isPlayerOne === true) controls 'w' and 's'
+                    if (key === 'w' || key === 's') shouldEmit = true;
+                } else { // Player 2 (isPlayerOne === false) controls 'ArrowUp' and 'ArrowDown'
+                    if (key === 'ArrowUp' || key === 'ArrowDown') shouldEmit = true;
+                }
+
+                if (shouldEmit) {
+                    const payload: PlayerInputPayload = {
+                        roomName: roomName,
+                        key: key,
+                        action: 'press',
+                    };
+                    socket.emit(SOCKET_EVENTS.PLAYER_INPUT, payload);
+                    // console.log('Sent PLAYER_INPUT:', payload); // For debugging client send
+                }
+            }
+        };
+
+        // Add keydown listener
+        window.addEventListener('keydown', handleKeyDown);
+
+        // Cleanup: remove event listener when component unmounts or dependencies change
+        return () => {
+            window.removeEventListener('keydown', handleKeyDown);
+        };
+    }, [roomName, currentGameState, myPlayerId, isPlayerOne]); // Dependencies: re-run if these change
 
 
     // --- Action Handlers ---
@@ -113,21 +154,21 @@ function App() {
         <div className="App">
             <header className="App-header">
                 <h1>Multiplayer Pong</h1>
-                <p>Status: {isConnected ? `Connected (ID: ${socket.id || 'N/A'})` : 'Disconnected'}</p>
+                <p>Status: {isConnected ? `Connected (Client ID: ${socket.id || 'N/A'})` : 'Disconnected'}</p>
                 <p>UI Message: {uiMessage}</p>
 
-                {!currentGameState && ( // Show Join Game button only if not in a game
+                {!currentGameState && (
                     <button onClick={handleJoinGame} disabled={!isConnected || !!roomName}>
-                        {roomName ? "In Room" : "Join Game"}
+                        {roomName ? "In Room..." : "Join Game"}
                     </button>
                 )}
 
                 {roomName && <p>Room: {roomName}</p>}
-                {myPlayerId && <p>My Player ID: {myPlayerId} {isPlayerOne !== null ? (isPlayerOne ? "(Player 1 - Left)" : "(Player 2 - Right)") : ""}</p>}
+                {myPlayerId && <p>My Server-Assigned Player ID: {myPlayerId} {isPlayerOne !== null ? (isPlayerOne ? "(Player 1 - Left - Controls: W/S)" : "(Player 2 - Right - Controls: Up/Down Arrows)") : ""}</p>}
 
                 {currentGameState && (
                     <div className="game-info">
-                        <h2>Game Active!</h2>
+                        <h2>Game Active! (Raw State Below)</h2>
                         <p>Ball X: {currentGameState.ball.x.toFixed(0)}, Ball Y: {currentGameState.ball.y.toFixed(0)}</p>
                         <p>
                             My Score: {currentGameState.scores[myPlayerId!] !== undefined ? currentGameState.scores[myPlayerId!] : 'N/A'}
@@ -139,11 +180,10 @@ function App() {
                                         return ` ${currentGameState.scores[pId]}`;
                                     }
                                     return null;
-                                })
+                                }).filter(Boolean).join('') || 'N/A' // filter(Boolean) removes nulls, join concatenates
                             }
                         </p>
-                        {/* We will replace this with actual game rendering components */}
-                        <pre style={{ textAlign: 'left', border: '1px solid #ccc', padding: '10px' }}>
+                        <pre style={{ textAlign: 'left', border: '1px solid #ccc', padding: '10px', maxHeight: '300px', overflowY: 'auto', background: '#f7f7f7' }}>
                             {JSON.stringify(currentGameState, null, 2)}
                         </pre>
                     </div>
