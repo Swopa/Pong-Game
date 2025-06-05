@@ -82,10 +82,9 @@ export interface GameUpdatePayload {
 
 export interface RoomJoinedPayload {
   roomName: string;
-  yourPlayerId: string; // The client's own player ID
+  yourPlayerId: string;
+  isPlayerOne: boolean; 
   initialGameState: GameState;
-  // You might also send player assignments (e.g., if they are player 1 or 2)
-  // playerAssignment: 'player1' | 'player2';
   message: string;
 }
 
