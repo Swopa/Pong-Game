@@ -7,11 +7,11 @@ export const PADDLE_SPEED = 10; // Units per keyboard event (or per frame if con
 export const BALL_RADIUS = 8;
 export const INITIAL_BALL_SPEED = 5;
 export const PADDLE_OFFSET_X = 30; // Distance from side walls
-
+export const WINNING_SCORE = 5;
 
 // Define valid keys for paddle movement
-export type PaddleMoveKey = 'ArrowUp' | 'ArrowDown' | 'w' | 's';
-export type PaddleMoveAction = 'press' | 'release'; // To handle keydown and keyup
+export type PaddleMoveKey = "ArrowUp" | "ArrowDown" | "w" | "s";
+export type PaddleMoveAction = "press" | "release"; // To handle keydown and keyup
 
 // ------------ Game Object Interfaces ------------
 export interface Player {
@@ -24,7 +24,7 @@ export interface Paddle {
   playerId: string; // ID of the player controlling this paddle
   x: number;
   y: number;
-  width: number;  
+  width: number;
   height: number;
   // dy: number; // Current vertical speed, for smoother server-side movement if needed
 }
@@ -47,22 +47,22 @@ export interface GameRoom {
   roomName: string;
   players: Player[]; // Max 2 players
   gameState: GameState;
-  status: 'waiting' | 'playing' | 'finished';
+  status: "waiting" | "playing" | "finished";
   // gameLoopInterval?: NodeJS.Timeout; // Server-side only
 }
 
 export interface GameState {
   ball: Ball;
-  paddles: { // Keyed by player ID
+  paddles: {
+    // Keyed by player ID
     [playerId: string]: Paddle;
   };
   scores: Scores;
-  status: 'starting' | 'playing' | 'paused' | 'score' | 'gameOver'; // More granular game phase
+  status: "starting" | "playing" | "paused" | "score" | "gameOver"; // More granular game phase
   message: string | null; // e.g., "Player 1 scores!", "Game Over!"
   lastScoredBy?: string | null; // playerId who last scored
   winner?: string | null; // playerId of the winner
 }
-
 
 // ------------ Socket Event Payloads (Client to Server) ------------
 export interface PlayerInputPayload {
@@ -71,11 +71,9 @@ export interface PlayerInputPayload {
   action: PaddleMoveAction; // This uses the type alias defined above
 }
 
-
 export interface JoinRoomPayload {
   playerName?: string; // Optional player name
 }
-
 
 // ------------ Socket Event Payloads (Server to Client) ------------
 export interface GameUpdatePayload {
@@ -85,7 +83,7 @@ export interface GameUpdatePayload {
 export interface RoomJoinedPayload {
   roomName: string;
   yourPlayerId: string;
-  isPlayerOne: boolean; 
+  isPlayerOne: boolean;
   initialGameState: GameState;
   message: string;
 }
@@ -103,21 +101,19 @@ export interface PlayerAssignedPayload {
 // It's good practice to define the event names as constants too
 export const SOCKET_EVENTS = {
   // Client to Server
-  PLAYER_INPUT: 'playerInput',
-  JOIN_ROOM_REQUEST: 'joinRoomRequest', // Client wants to join/create a room
+  PLAYER_INPUT: "playerInput",
+  JOIN_ROOM_REQUEST: "joinRoomRequest", // Client wants to join/create a room
 
   // Server to Client
-  GAME_UPDATE: 'gameUpdate',         // Full game state update
-  PADDLE_MOVE_CONFIRMED: 'paddleMoveConfirmed', // (Optional) if you only send deltas
-  ROOM_JOINED: 'roomJoined',         // Confirmation that player joined a room, with initial state
-  GAME_START: 'gameStart',           // Signals the game is officially starting
-  OPPONENT_JOINED: 'opponentJoined',
-  OPPONENT_DISCONNECTED: 'opponentDisconnected',
-  SCORE_UPDATE: 'scoreUpdate',       // For just score changes, or include in GameState
-  GAME_OVER: 'gameOver',
-  ERROR: 'error',                    // For sending error messages to client
-  PLAYER_ASSIGNMENT: 'playerAssignment', // Tells client which player they are
-  WAITING_FOR_PLAYER: 'waitingForPlayer',
+  GAME_UPDATE: "gameUpdate", // Full game state update
+  PADDLE_MOVE_CONFIRMED: "paddleMoveConfirmed", // (Optional) if you only send deltas
+  ROOM_JOINED: "roomJoined", // Confirmation that player joined a room, with initial state
+  GAME_START: "gameStart", // Signals the game is officially starting
+  OPPONENT_JOINED: "opponentJoined",
+  OPPONENT_DISCONNECTED: "opponentDisconnected",
+  SCORE_UPDATE: "scoreUpdate", // For just score changes, or include in GameState
+  GAME_OVER: "gameOver",
+  ERROR: "error", // For sending error messages to client
+  PLAYER_ASSIGNMENT: "playerAssignment", // Tells client which player they are
+  WAITING_FOR_PLAYER: "waitingForPlayer",
 } as const; // `as const` makes the values read-only and more specific types
-
-
